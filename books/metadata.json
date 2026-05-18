@@ -1,0 +1,28 @@
+{
+  "version": "1.0",
+  "last_updated": "2026-05-18",
+  "total": 1,
+  "books": [
+    {
+      "id": "example-book-001",
+      "title": "（示例）书名",
+      "author": "作者名",
+      "author_death_year": 1900,
+      "publication_year": 1935,
+      "pages": 0,
+      "source": "来源机构名称",
+      "source_url": "",
+      "watermark": "馆藏水印说明",
+      "reviewed": false,
+      "review_date": "",
+      "description": "书籍内容简介",
+      "download": {
+        "baidu": "",
+        "quark": "",
+        "aliyun": "",
+        "xunlei": ""
+      },
+      "tags": []
+    }
+  ]
+}

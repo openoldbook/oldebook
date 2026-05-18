@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OldEbook 公版书库</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif; background: #f5f0eb; color: #333; }
+    a { color: #8b5e3c; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    header { background: #4a3728; color: #f5f0eb; padding: 2rem 1rem; text-align: center; }
+    header h1 { font-size: 1.8rem; font-weight: 700; letter-spacing: 0.1em; }
+    header p { margin-top: 0.5rem; font-size: 0.95rem; opacity: 0.85; }
+
+    .container { max-width: 960px; margin: 0 auto; padding: 1.5rem 1rem; }
+
+    .search-box { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; }
+    .search-box input { flex: 1; padding: 0.6rem 1rem; border: 1px solid #d4c5b0; border-radius: 6px; font-size: 1rem; background: #fffefc; }
+    .search-box select { padding: 0.6rem 0.8rem; border: 1px solid #d4c5b0; border-radius: 6px; background: #fffefc; font-size: 0.95rem; }
+
+    .stats { font-size: 0.9rem; color: #7a6a55; margin-bottom: 1rem; }
+    .tag-filter { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 1.2rem; }
+    .tag-btn { padding: 0.3rem 0.8rem; border: 1px solid #d4c5b0; border-radius: 999px; background: #fffefc; font-size: 0.85rem; cursor: pointer; color: #5a4a38; }
+    .tag-btn.active { background: #8b5e3c; color: #fff; border-color: #8b5e3c; }
+
+    .book-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; }
+    .book-card { background: #fffefc; border: 1px solid #e0d5c5; border-radius: 8px; padding: 1rem; transition: box-shadow 0.2s; }
+    .book-card:hover { box-shadow: 0 2px 12px rgba(74,55,40,0.12); }
+    .book-title { font-size: 1.05rem; font-weight: 600; color: #4a3728; margin-bottom: 0.3rem; }
+    .book-meta { font-size: 0.85rem; color: #7a6a55; margin-bottom: 0.5rem; }
+    .book-desc { font-size: 0.9rem; color: #5a4a38; margin-bottom: 0.8rem; line-height: 1.5; }
+    .book-tags { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-bottom: 0.8rem; }
+    .book-tag { font-size: 0.78rem; padding: 0.15rem 0.5rem; background: #f0e8dc; border-radius: 4px; color: #7a6a55; }
+    .dl-links { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+    .dl-link { font-size: 0.82rem; padding: 0.25rem 0.6rem; border: 1px solid #d4c5b0; border-radius: 4px; background: #faf6f0; }
+    .dl-link:hover { background: #8b5e3c; color: #fff; border-color: #8b5e3c; text-decoration: none; }
+    .no-result { text-align: center; color: #9a8a75; padding: 3rem 0; grid-column: 1/-1; }
+
+    footer { text-align: center; padding: 2rem 1rem; font-size: 0.85rem; color: #9a8a75; border-top: 1px solid #e0d5c5; margin-top: 2rem; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>OldEbook 公版书库</h1>
+  <p>自由分享 · 公有领域 · 古籍与民国书籍数字化资源</p>
+</header>
+
+<div class="container">
+  <div class="search-box">
+    <input type="text" id="searchInput" placeholder="搜索书名、作者、标签..." />
+    <select id="sortSelect">
+      <option value="year-desc">出版年 ↓</option>
+      <option value="year-asc">出版年 ↑</option>
+      <option value="title">书名 A-Z</option>
+    </select>
+  </div>
+
+  <div class="stats" id="stats"></div>
+  <div class="tag-filter" id="tagFilter"></div>
+  <div class="book-list" id="bookList"></div>
+</div>
+
+<footer>
+  <p>本书库只收录已进入公有领域的书籍 · 下载即表示仅用于个人学习与研究</p>
+  <p style="margin-top:0.5rem;">
+    <a href="https://github.com/你的用户名/oldebook-archive">GitHub 仓库</a>
+    &nbsp;·&nbsp;
+    <a href="./books/metadata.json">元数据索引</a>
+  </p>
+  <p style="margin-top:0.3rem; font-size:0.8rem;">Last updated: 2026-05</p>
+</footer>
+
+<script>
+let books = [];
+let allTags = new Set();
+let activeTag = '';
+
+async function loadData() {
+  try {
+    const res = await fetch('./books/metadata.json?t=' + Date.now());
+    const data = await res.json();
+    books = (data.books || []).filter(b => b.reviewed);
+    books.forEach(b => (b.tags || []).forEach(t => allTags.add(t)));
+    renderTags();
+    renderBooks();
+  } catch(e) {
+    document.getElementById('bookList').innerHTML =
+      '<div class="no-result">加载书籍数据失败，请检查 books/metadata.json 是否存在。</div>';
+  }
+}
+
+function renderTags() {
+  const el = document.getElementById('tagFilter');
+  let html = '<button class="tag-btn' + (!activeTag ? ' active' : '') + '" data-tag="">全部</button>';
+  [...allTags].sort().forEach(t => {
+    html += '<button class="tag-btn' + (activeTag === t ? ' active' : '') + '" data-tag="' + t + '">' + t + '</button>';
+  });
+  el.innerHTML = html;
+  el.onclick = e => {
+    if (e.target.classList.contains('tag-btn')) {
+      activeTag = e.target.dataset.tag;
+      renderTags();
+      renderBooks();
+    }
+  };
+}
+
+function renderBooks() {
+  const q = document.getElementById('searchInput').value.trim().toLowerCase();
+  const sort = document.getElementById('sortSelect').value;
+
+  let filtered = books.filter(b => {
+    if (activeTag && !(b.tags || []).includes(activeTag)) return false;
+    if (q) {
+      const hay = [b.title, b.author, (b.tags||[]).join(' '), (b.description||'')].join(' ').toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
+
+  if (sort === 'year-desc') filtered.sort((a,b) => (b.publication_year||0) - (a.publication_year||0));
+  if (sort === 'year-asc')  filtered.sort((a,b) => (a.publication_year||0) - (b.publication_year||0));
+  if (sort === 'title')     filtered.sort((a,b) => a.title.localeCompare(b.title, 'zh'));
+
+  document.getElementById('stats').textContent =
+    '共 ' + filtered.length + ' 本书' + (q ? '（筛选自 ' + books.length + ' 本）' : '');
+
+  const list = document.getElementById('bookList');
+  if (!filtered.length) {
+    list.innerHTML = '<div class="no-result">没有找到匹配的书籍</div>';
+    return;
+  }
+
+  list.innerHTML = filtered.map(b => {
+    const links = [];
+    if (b.download) {
+      if (b.download.baidu)  links.push('<a class="dl-link" href="' + b.download.baidu + '" target="_blank">百度</a>');
+      if (b.download.quark)  links.push('<a class="dl-link" href="' + b.download.quark + '" target="_blank">夸克</a>');
+      if (b.download.aliyun) links.push('<a class="dl-link" href="' + b.download.aliyun + '" target="_blank">阿里</a>');
+      if (b.download.xunlei) links.push('<a class="dl-link" href="' + b.download.xunlei + '" target="_blank">迅雷</a>');
+    }
+    const tags = (b.tags||[]).map(t => '<span class="book-tag">' + t + '</span>').join('');
+    return '<div class="book-card">' +
+      '<div class="book-title">' + b.title + '</div>' +
+      '<div class="book-meta">作者：' + b.author + '　出版年：' + (b.publication_year||'未知') + '　页数：' + (b.pages||'?') + '</div>' +
+      (b.description ? '<div class="book-desc">' + b.description + '</div>' : '') +
+      (tags ? '<div class="book-tags">' + tags + '</div>' : '') +
+      (links.length ? '<div class="dl-links">' + links.join('') + '</div>' : '<div style="font-size:0.85rem;color:#b00;">暂无数传链接</div>') +
+      '</div>';
+  }).join('');
+}
+
+document.getElementById('searchInput').addEventListener('input', renderBooks);
+document.getElementById('sortSelect').addEventListener('change', renderBooks);
+
+loadData();
+</script>
+</body>
+</html>
